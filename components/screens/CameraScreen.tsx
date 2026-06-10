@@ -52,7 +52,7 @@ export default function CameraScreen({
   useEffect(() => {
     if (!IS_TEST_MODE) return;
     navigator.mediaDevices
-      .getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' } })
+      .getUserMedia({ video: { width: { ideal: 1296 }, height: { ideal: 864 }, facingMode: 'user' } })
       .then((stream) => {
         streamRef.current = stream;
         if (videoRef.current) {
@@ -76,8 +76,8 @@ export default function CameraScreen({
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return null;
-    canvas.width = video.videoWidth || 1280;
-    canvas.height = video.videoHeight || 720;
+    canvas.width = video.videoWidth || 1296;
+    canvas.height = video.videoHeight || 864;
     canvas.getContext('2d')?.drawImage(video, 0, 0);
     return canvas.toDataURL('image/jpeg', 0.9);
   }, []);

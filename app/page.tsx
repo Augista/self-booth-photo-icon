@@ -8,6 +8,7 @@ import PaymentScreen from '@/components/screens/PaymentScreen';
 import CollegeScreen from '@/components/screens/CollegeScreen';
 import CameraScreen from '@/components/screens/CameraScreen';
 import ResultScreen from '@/components/screens/ResultScreen';
+import TemplatePreviewScreen from '@/components/screens/TemplatePreviewScreen';
 
 export default function Home() {
   const {
@@ -22,7 +23,7 @@ export default function Home() {
   } = useSession();
 
   const [currentScreen, setCurrentScreen] = useState<
-    'start' | 'college' | 'payment' | 'camera' | 'result'
+    'start' | 'college' | 'payment' | 'camera' | 'result' | 'admin-preview'
   >('start');
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [photoCount, setPhotoCount] = useState<number>(4);
@@ -105,8 +106,16 @@ export default function Home() {
         </div>
       )}
 
+      {currentScreen === 'admin-preview' && (
+        <TemplatePreviewScreen onClose={() => setCurrentScreen('start')} />
+      )}
+
       {currentScreen === 'start' && (
-        <StartScreen onStart={handleStart} loading={loading} />
+        <StartScreen
+          onStart={handleStart}
+          loading={loading}
+          onAdminPreview={() => setCurrentScreen('admin-preview')}
+        />
       )}
 
       {currentScreen === 'college' && session && (

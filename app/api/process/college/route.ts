@@ -47,7 +47,10 @@ export async function POST(request: NextRequest) {
     let templateWidth = 0
     let templateHeight = 0
 
-    for (const ext of ['jpg', 'jpeg', 'png', 'webp']) {
+    let templateBuf: Buffer | null = null
+    let templateHasAlpha = false
+
+    for (const ext of ['png', 'jpg', 'jpeg', 'webp']) {
       try {
         const { data: urlData } = supabase.storage
           .from('templates')
@@ -57,11 +60,21 @@ export async function POST(request: NextRequest) {
         const meta = await sharp(buf).metadata()
         templateWidth = meta.width ?? 1200
         templateHeight = meta.height ?? 1800
+        templateHasAlpha = (meta.channels ?? 3) >= 4
+        templateBuf = buf
 
-        baseCanvas = await sharp(buf)
-          .resize(templateWidth, templateHeight, { fit: 'fill' })
-          .jpeg({ quality: 90 })
-          .toBuffer()
+        // For opaque templates (green/black placeholders): use as base canvas
+        if (!templateHasAlpha) {
+          baseCanvas = await sharp(buf)
+            .resize(templateWidth, templateHeight, { fit: 'fill' })
+            .jpeg({ quality: 90 })
+            .toBuffer()
+        } else {
+          // For transparent PNG: blank canvas, photos first, template on top later
+          baseCanvas = await sharp({
+            create: { width: templateWidth, height: templateHeight, channels: 3, background: { r: 230, g: 230, b: 230 } },
+          }).jpeg({ quality: 90 }).toBuffer()
+        }
         break
       } catch {
         // try next extension
@@ -147,6 +160,18 @@ export async function POST(request: NextRequest) {
     let finalBuffer = baseCanvas
     if (composites.length > 0) {
       finalBuffer = await sharp(baseCanvas).composite(composites).jpeg({ quality: 90 }).toBuffer()
+    }
+
+    // For PNG templates with transparent holes: overlay template on top of photos
+    if (templateHasAlpha && templateBuf) {
+      const templatePng = await sharp(templateBuf)
+        .resize(templateWidth, templateHeight, { fit: 'fill' })
+        .png()
+        .toBuffer()
+      finalBuffer = await sharp(finalBuffer)
+        .composite([{ input: templatePng, blend: 'over' }])
+        .jpeg({ quality: 90 })
+        .toBuffer()
     }
 
     // --- Upload result ---
