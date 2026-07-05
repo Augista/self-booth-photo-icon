@@ -63,9 +63,7 @@ export default function CollegePage() {
         body: JSON.stringify({ sessionId, template: designId, layout: config.layout }),
       });
 
-      router.push(
-        `/camera/${sessionId}?template=${encodeURIComponent(designId)}&photoCount=${photoCount}`
-      );
+      router.push(`/payment/${sessionId}`);
     } catch (err) {
       console.error('[CollegePage] select error:', err);
     }

@@ -22,8 +22,8 @@ const TEMPLATE_CONFIGS: Record<string, TemplateConfig> = {
     photoCount: 2,
     layout: '1x4',
     slots: [
-      { left: 0.04, top: 0.10, width: 0.90, height: 0.34 },
-      { left: 0.04, top: 0.46, width: 0.90, height: 0.34 },
+      { left: 0.165, top: 0.147, width: 0.681, height: 0.298 }, // 1
+      { left: 0.160, top: 0.470, width: 0.689, height: 0.307 }, // 2
     ],
   },
   // 3x2.png — 3-row × 2-column grid (6 photos)

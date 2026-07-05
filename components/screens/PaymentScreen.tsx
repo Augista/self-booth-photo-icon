@@ -1,6 +1,6 @@
 'use client';
-
 import { useEffect, useState } from 'react';
+import QRCode from 'qrcode';
 import { Button } from '@/components/ui/button';
 
 interface Session {
@@ -17,7 +17,7 @@ interface PaymentScreenProps {
   generateQRIS: (amount: number) => Promise<any>;
 }
 
-const PRICE = 50000; // Rp 50.000
+const PRICE = 30000; // Rp 30.000
 
 export default function PaymentScreen({
   session,
@@ -26,17 +26,69 @@ export default function PaymentScreen({
 }: PaymentScreenProps) {
   const [loading, setLoading] = useState(false);
   const [localQr, setLocalQr] = useState<string | null>(null);
-  const [transactionId, setTransactionId] = useState<string | null>(null);
+  const [qrImage, setQrImage] = useState<string | null>(null);
+  const [timeLeft, setTimeLeft] = useState(120);
 
   const isCompleted = session.paymentVerified;
-  const qrImage = session.qrisUrl || localQr;
 
   // ✅ Generate QRIS kalau belum ada di backend
+useEffect(() => {
+  if (!localQr && session.qrisUrl && !loading) {
+    setLocalQr(session.qrisUrl);
+  }
+}, [session.qrisUrl, localQr, loading]);
+
 useEffect(() => {
   if (!session.qrisUrl && !localQr && !loading) {
     handleGenerateQRIS();
   }
 }, [session.qrisUrl, localQr, loading]);
+
+useEffect(() => {
+  if (!localQr) {
+    return;
+  }
+
+  setTimeLeft(120);
+}, [localQr]);
+
+useEffect(() => {
+  if (!localQr || timeLeft <= 0) {
+    return;
+  }
+
+  const interval = setInterval(() => {
+    setTimeLeft((prev) => Math.max(prev - 1, 0));
+  }, 1000);
+
+  return () => clearInterval(interval);
+}, [localQr, timeLeft]);
+
+useEffect(() => {
+  const renderQr = async () => {
+    if (!localQr) {
+      setQrImage(null);
+      return;
+    }
+
+    try {
+      const dataUrl = await QRCode.toDataURL(localQr, {
+        width: 240,
+        margin: 2,
+        color: {
+          dark: '#0f172a',
+          light: '#ffffff',
+        },
+      });
+      setQrImage(dataUrl);
+    } catch (error) {
+      console.error('[PaymentScreen] QR render error:', error);
+      setQrImage(null);
+    }
+  };
+
+  renderQr();
+}, [localQr]);
 
   // ✅ Auto lanjut kalau payment sudah verified dari backend
   useEffect(() => {
@@ -63,9 +115,7 @@ const handleGenerateQRIS = async () => {
       setLocalQr(result.qrisString);
     }
 
-    if (result.transactionId) {
-      setTransactionId(result.transactionId);
-    }
+    setTimeLeft(120);
 
   } catch (error) {
     console.error('[PaymentScreen]', error);
@@ -75,8 +125,8 @@ const handleGenerateQRIS = async () => {
 };
 
 const handleConfirmPayment = async () => {
-  if (!transactionId) {
-    console.error('Transaction ID belum ada');
+  if (timeLeft <= 0) {
+    console.error('QRIS expired, refresh terlebih dahulu.');
     return;
   }
 
@@ -88,7 +138,6 @@ const handleConfirmPayment = async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         sessionId: session.id,
-        transactionId,
       }),
     });
 
@@ -98,7 +147,6 @@ const handleConfirmPayment = async () => {
       throw new Error(data.error || 'Verify failed');
     }
 
-    // ❗ optional: langsung lanjut tanpa nunggu polling
     onPaymentComplete();
 
   } catch (error) {
@@ -135,15 +183,8 @@ const handleConfirmPayment = async () => {
       {!isCompleted && (
         <div className="bg-white p-4 rounded-lg">
           {qrImage ? (
-            <div className="w-64 h-64 flex items-center justify-center bg-slate-100 rounded">
-              <div className="text-center">
-                <p className="text-sm text-slate-600 mb-2">📱 QR Code QRIS</p>
-                <div className="w-48 h-48 bg-linear-to-br from-blue-400 to-blue-600 rounded flex items-center justify-center">
-                  <span className="text-white text-xs text-center px-2">
-                    {qrImage.substring(0, 50)}...
-                  </span>
-                </div>
-              </div>
+            <div className="w-64 h-64 flex items-center justify-center bg-slate-100 rounded overflow-hidden">
+              <img src={qrImage} alt="QRIS pembayaran" className="w-full h-full object-contain" />
             </div>
           ) : (
             <div className="w-64 h-64 flex items-center justify-center bg-slate-100 rounded">
@@ -169,24 +210,46 @@ const handleConfirmPayment = async () => {
         </div>
       )}
 
+      {/* Countdown */}
+      {!isCompleted && (
+        <div className="text-center text-sm text-slate-500">
+          {timeLeft > 0 ? (
+            <p>Waktu tersisa: {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}</p>
+          ) : (
+            <p className="text-red-500">Waktu QRIS habis. Tekan refresh untuk memulai ulang.</p>
+          )}
+        </div>
+      )}
+
       {/* Button */}
       {!isCompleted && (
-        <div className="flex gap-3 w-full max-w-sm">
+        <div className="flex flex-col gap-3 w-full max-w-sm">
           <Button
             onClick={handleConfirmPayment}
-            disabled={loading}
+            disabled={loading || timeLeft <= 0}
             size="lg"
             className="flex-1 bg-green-600 hover:bg-green-700 text-white"
           >
             {loading ? 'Memproses...' : 'Pembayaran Selesai'}
           </Button>
+          {timeLeft <= 0 && (
+            <Button
+              onClick={handleGenerateQRIS}
+              disabled={loading}
+              size="lg"
+              variant="secondary"
+              className="flex-1"
+            >
+              {loading ? 'Memuat...' : 'Refresh QRIS'}
+            </Button>
+          )}
         </div>
       )}
 
       {/* Info */}
       {!isCompleted && (
         <div className="text-xs text-slate-500 text-center max-w-sm">
-          <p>Scan QRIS lalu tekan tombol setelah bayar</p>
+          <p>Scan QRIS lalu tekan tombol setelah bayar. QRIS berlaku selama 120 detik.</p>
         </div>
       )}
     </div>

@@ -140,10 +140,10 @@ export function useSession() {
       if (!session) return null
 
       try {
-        const response = await fetch('/api/payment/generate-qris', {
+        const response = await fetch('/api/payment/qris', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId: session.id, amount }),
+          body: JSON.stringify({ amount }),
         })
 
         if (!response.ok) throw new Error('Gagal generate QRIS')

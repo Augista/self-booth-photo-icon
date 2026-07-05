@@ -50,7 +50,7 @@ export default function PaymentPage() {
   }, [sessionId]);
 
   const generateQRIS = async (amount: number) => {
-    const res = await fetch('/api/payment/generate-qris', {
+    const res = await fetch('/api/payment/qris', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sessionId, amount }),

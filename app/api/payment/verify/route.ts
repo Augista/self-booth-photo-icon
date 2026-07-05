@@ -8,9 +8,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { sessionId, transactionId } = body
 
-    if (!sessionId || !transactionId) {
+    if (!sessionId) {
       return NextResponse.json(
-        { error: 'sessionId dan transactionId diperlukan' },
+        { error: 'sessionId diperlukan' },
         { status: 400 }
       )
     }
@@ -27,21 +27,23 @@ export async function POST(request: NextRequest) {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // 🔥 Update payment record
-    const { error: paymentError } = await supabase
-      .from('payments')
-      .update({
-        status: 'verified',
-        verified_at: new Date().toISOString(),
-      })
-      .eq('transaction_id', transactionId)
+    // 🔥 Update payment record if transactionId is provided
+    if (transactionId) {
+      const { error: paymentError } = await supabase
+        .from('payments')
+        .update({
+          status: 'verified',
+          verified_at: new Date().toISOString(),
+        })
+        .eq('transaction_id', transactionId)
 
-    if (paymentError) {
-      console.error('[API] Payment update error:', paymentError)
-      return NextResponse.json(
-        { error: 'Gagal update payment' },
-        { status: 500 }
-      )
+      if (paymentError) {
+        console.error('[API] Payment update error:', paymentError)
+        return NextResponse.json(
+          { error: 'Gagal update payment' },
+          { status: 500 }
+        )
+      }
     }
 
     // 🔥 Update session → lanjut ke camera
